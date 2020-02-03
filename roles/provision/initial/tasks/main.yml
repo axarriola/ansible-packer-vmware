@@ -1,0 +1,56 @@
+---
+- set_fact:
+    actual_ansible_user: "{{ ansible_user }}"
+  delegate_to: localhost
+
+- set_fact:
+    ansible_user: "root"
+    ansible_ssh_pass: "{{ root_pwd }}"
+    ansible_ssh_private_key_file: ""
+  delegate_to: localhost
+
+- name: Remove host from known_hosts
+  shell: ssh-keygen -R {{ item }}
+  delegate_to: localhost
+  loop:
+    - "{{ inventory_hostname }}"
+    - "{{ ipv4 }}"
+    - "{{ ipv6 }}"
+
+- name: accept new ssh fingerprints
+  shell: ssh-keyscan {{ ipv6 }},{{inventory_hostname}} >> ~/.ssh/known_hosts
+  delegate_to: localhost
+
+- name: Add ansible user
+  group:
+    name: "{{ actual_ansible_user }}"
+    state: present
+
+- name: Add users
+  user:
+    name: "{{ actual_ansible_user }}"
+    state: present
+    shell: "/bin/bash"
+    createhome: yes
+    groups: "root"
+
+- name: Get users key(s) and update the authorized_keys file
+  authorized_key:
+    user: "{{ actual_ansible_user }}"
+    key: "{{ lookup('file', '{{ ssh_public_key_file }}', errors='warn') }}"
+
+- name: Allow wheel group to have passwordless sudo
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: 'visudo -cf %s'
+
+- name: Assign sudo role to the admin users
+  copy: 
+    content: "{{ actual_ansible_user }} ALL=(ALL) NOPASSWD:ALL" 
+    dest: "/etc/sudoers.d/99-{{ actual_ansible_user }}"
+    mode: 0440
+    owner: root
+    group: root

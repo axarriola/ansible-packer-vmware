@@ -1,0 +1,13 @@
+---
+- hosts: packer_templates
+  gather_facts: false
+  vars_files:
+    - vmware_vars.yml
+  vars:
+    packer_download_url: https://github.com/hashicorp/packer/releases/download/nightly/packer_linux_amd64.zip
+    packer_checksum: "sha256:de02f73167f077b5183cb8788a72963f7e0a200e98fe247313bf100304c113da"
+  roles:
+    - role: stage-files
+      tags: stage
+    - role: build-template
+      tags: build

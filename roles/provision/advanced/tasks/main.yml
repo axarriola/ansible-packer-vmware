@@ -1,0 +1,14 @@
+---
+- setup:
+
+# Execute specific configuration for VM. e.g. hardening, package installs.
+# For example, the following tasks would upgrade pip2/pip3
+#- include_tasks: python_pip_setuptools.yml
+
+#Or installing packages from an inventory list
+#- name: installing Base Packages
+#  package:
+#    name: "{{ item }}"
+#    state: present
+#  with_items: "{{ yum_packages|default([]) }}"
+#  become: true

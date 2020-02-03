@@ -1,0 +1,30 @@
+---
+- name: Reset NTP config
+  become: true
+  copy:
+    content: |
+             driftfile /var/lib/ntp/drift
+
+             restrict default nomodify notrap nopeer noquery
+
+             restrict 127.0.0.1
+             restrict ::1
+    dest: '/etc/ntp.conf'
+
+- name: Delete DNS and proxy configs
+  become: true
+  copy:
+    content: ""
+    dest: "{{ item }}"
+  loop:
+    - '/etc/environment'
+    - '/etc/profile.d/proxy.sh'
+    - '/etc/resolv.conf'
+
+- name: Delete interface config files
+  become: true
+  file:
+    path: "/etc/sysconfig/network-scripts/ifcfg-{{ conn_name }}"
+    state: absent
+
+# Remove other configuration...

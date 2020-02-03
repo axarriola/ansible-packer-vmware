@@ -1,0 +1,69 @@
+---
+- name: Make sure {{ playbook_dir }}/packer/ exists
+  stat:
+    path: "{{ playbook_dir }}/packer"
+  register: packer_folder
+  delegate_to: localhost
+  failed_when: not packer_folder.stat.exists
+
+- name: Verify that the packer zip does not exist locally
+  stat:
+    path: "{{ playbook_dir }}/packer/{{ packer_download_url.split('/')[-1] }}"
+    checksum_algorithm: "{{ packer_checksum.split(':')[0] }}"
+    get_checksum: true
+  register: packer_zip
+  delegate_to: localhost
+  ignore_errors: True
+
+- name: Download packer from {{ packer_download_url }}
+  get_url:
+    url: "{{ packer_download_url }}"
+    dest: "{{ playbook_dir }}/packer"
+    checksum: "{{ packer_checksum }}"
+  delegate_to: localhost
+  when: not packer_zip.stat.exists or packer_zip.stat.checksum != packer_checksum.split(':')[1]
+
+- name: Extract packer binary
+  become: true
+  unarchive:
+    src: "{{ playbook_dir }}/packer/{{ packer_download_url.split('/')[-1] }}"
+    dest: "{{ playbook_dir }}/packer/"
+  delegate_to: localhost
+
+#temporal. the current nightly build (1.5.2) comes inside pkg/
+#any other build would come in a folder called packer and the executable would be called packer
+- name: move binary
+  shell: mv {{ playbook_dir }}/packer/pkg/{{ packer_download_url.split('/')[-1].split('.')[0] }} {{ playbook_dir }}/packer/
+  become: true
+  delegate_to: localhost
+
+- name: Execute packer validate
+  shell: ./{{ packer_download_url.split('/')[-1].split('.')[0] }} validate {{ inventory_hostname }}-packer.json
+  register: packer_validate_output
+  args:
+    chdir: "{{ playbook_dir }}/packer"
+  delegate_to: localhost
+  environment:
+    PACKER_LOG: "1"
+    VC_PASS: "{{ vcenter_password }}"
+    VM_PASS: "{{ root_pwd }}"
+
+- name: debug packer validate output
+  debug:
+    var: packer_validate_output.stdout
+  delegate_to: localhost
+
+- name: Execute packer builder
+  shell: "{{ playbook_dir }}/packer/{{ packer_download_url.split('/')[-1].split('.')[0] }} build {{ playbook_dir }}/packer/{{ inventory_hostname }}-packer.json"
+  register: packer_build_output
+  args:
+  delegate_to: localhost
+  environment:
+    PACKER_LOG: "1"
+    VC_PASS: "{{ vcenter_password }}"
+    VM_PASS: "{{ root_pwd }}"
+
+- name: debug packer build output
+  debug:
+    var: packer_build_output.stdout
+  delegate_to: localhost

@@ -1,0 +1,37 @@
+all:
+  children:
+    packer_templates:
+      hosts:
+        centos7-template:
+          port_group: VM Network
+          conn_name: ens160
+          adapter_type: vmxnet3
+          ipv4: 172.16.24.2
+          ipv4_netmask: 255.255.255.0
+          ipv4_gw: 172.16.24.1
+          ipv6: fd00:a:b:c::2/64
+          ipv6_gw: fd00:a:b:c::1
+          disk_gb: "100"
+          disk_thin: true
+          guest_id: centos7_64Guest
+          memory: 2048
+          vcpu: 2
+          ansible_user: ansible
+          ansible_ssh_private_key_file: "{{ playbook_dir }}/id_rsa"
+          ssh_public_key_file: "{{ playbook_dir }}/id_rsa.pub"
+          dns_server: 1.1.1.1
+          pip_version: 19.3.1
+          iso:
+            url: "http://mirror.schoemaker.systems/centos/7.7.1908/isos/x86_64/CentOS-7-x86_64-DVD-1908.iso"
+            checksum: "sha256:9bba3da2876cb9fcf6c28fb636bcbd01832fe6d84cd7445fa58e44e569b3b4fe"
+          root_pwd: "rootpwd1122" #ENCRYPT!!
+          yum_packages:
+          - epel-release
+          - vim
+          - git
+          - traceroute
+          - gcc
+          - python
+          - python36
+          - wget
+          - curl

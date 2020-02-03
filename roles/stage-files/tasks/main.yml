@@ -1,0 +1,73 @@
+---
+- name: Query if CentOS iso is present in the vsphere datastore
+  vsphere_file:
+    host: "{{ vcenter_server }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    datacenter: "{{ vcenter_dc }}"
+    datastore: "{{ vcenter_datastore }}"
+    path: "{{ vcenter_iso_path }}{{ iso.url.split('/')[-1] }}"
+    state: file
+    validate_certs: "{{ not vcenter_insecure|bool }}"
+  register: datastore_centos_iso_file
+  delegate_to: localhost
+  ignore_errors: true
+
+#BLOCK START: executed if centos iso is not present in datastore
+- block:
+  - name: Verify that the iso file does not exist locally
+    stat:
+      path: "{{ playbook_dir }}/{{ iso.url.split('/')[-1] }}"
+      checksum_algorithm: "{{ iso.checksum.split(':')[0] }}"
+      get_checksum: true
+    register: ciso_file
+    delegate_to: localhost
+    ignore_errors: True
+  
+  - name: Download CentOS iso
+    get_url:
+      url: "{{ iso.url }}"
+      dest: "{{ playbook_dir }}"
+      checksum: "{{ iso.checksum }}"
+      mode: "0644"
+    when: not ciso_file.stat.exists or ciso_file.stat.checksum != iso.checksum.split(':')[1]
+    delegate_to: localhost
+  
+  - name: Upload iso to datastore
+    vsphere_copy:
+      hostname: "{{ vcenter_server }}"
+      username: "{{ vcenter_user }}"
+      password: "{{ vcenter_password }}"
+      src: "{{ playbook_dir }}/{{ iso.url.split('/')[-1] }}"
+      datacenter: "{{ vcenter_dc }}"
+      datastore: "{{ vcenter_datastore }}"
+      validate_certs: "{{ not vcenter_insecure|bool }}"
+      path: "{{ vcenter_iso_path }}{{ iso.url.split('/')[-1] }}"
+    delegate_to: localhost
+  when: datastore_centos_iso_file.failed
+#BLOCK END
+
+- name: Create temporal directory packer/
+  file:
+    path: "{{ playbook_dir }}/packer"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+
+- name: Create packer file
+  template:
+    src: "{{ role_path }}/templates/packer_build.json"
+    dest: "{{ playbook_dir }}/packer/{{ inventory_hostname }}-packer.json"
+  delegate_to: localhost
+
+- name: Create root password hash
+  shell: python -c 'import crypt, os, base64; print(crypt.crypt("{{ root_pwd }}", "$6$" + base64.b64encode(os.urandom(6))))'
+  delegate_to: localhost
+  register: root_pwd_hash
+  no_log: true
+
+- name: Create kickstart file
+  template:
+    src: "{{ role_path }}/templates/ks.cfg"
+    dest: "{{ playbook_dir }}/packer/ks.cfg"
+  delegate_to: localhost

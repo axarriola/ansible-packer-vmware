@@ -1,0 +1,25 @@
+---
+- name: Check to see if pip is installed.
+  command: "pip --version"
+  ignore_errors: true
+  changed_when: false
+  check_mode: no
+  register: pip_is_installed
+
+- name: Upgrade pip
+  become: true
+  pip:
+    name: pip=={{ pip_version }}
+  when: pip_is_installed.rc == 0
+
+- name: Check to see if pip is installed.
+  command: "pip3 --version"
+  ignore_errors: true
+  changed_when: false
+  check_mode: no
+  register: pip3_is_installed
+
+- name: Upgrade pip3
+  become: true
+  shell: python3 -m pip install pip=={{ pip_version }}
+  when: pip3_is_installed.rc == 0

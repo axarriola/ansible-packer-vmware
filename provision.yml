@@ -1,0 +1,13 @@
+---
+- hosts: packer_templates
+  gather_facts: false
+  vars_files:
+    - vmware_vars.yml
+  roles:
+    - role: provision/initial
+      tags: provision_initial
+    - role: provision/advanced
+      tags: provision_advanced
+
+    - role: cleanup
+      tags: cleanup

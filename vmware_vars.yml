@@ -1,0 +1,10 @@
+vcenter_server: 10.0.0.1
+vcenter_user: administrator@vsphere.local
+vcenter_password: "vcpass1122" #ENCRYPT!!
+vcenter_dc: ha-datacenter
+vcenter_cluster: vc-cluter
+vcenter_folder: ""
+vcenter_datastore: datastore1
+vcenter_iso_path: centos7-iso/
+vcenter_insecure: true
+esxi_host: 10.0.0.2

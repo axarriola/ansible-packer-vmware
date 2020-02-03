@@ -1,0 +1,100 @@
+{
+  "variables": {
+    "vcenter_pass": "{{ '{{ env `VC_PASS` }}' }}",
+    "vm_pass": "{{ '{{ env `VM_PASS` }}' }}"
+  },
+  "builders": [
+    {
+      "type": "vsphere-iso",
+
+      "vcenter_server": "{{ vcenter_server }}",
+      "username": "{{ vcenter_user }}",
+      "password": "{{ '{{ user `vcenter_pass` }}' }}",
+      "insecure_connection": "{{ vcenter_insecure }}",
+
+      "datacenter": "{{ vcenter_dc }}",
+      "cluster": "{{ vcenter_cluster }}",
+      "vm_name": "{{ inventory_hostname }}",
+      "ssh_password": "{{ '{{ user `vm_pass` }}' }}",
+      "ssh_username": "root",
+      "ip_wait_timeout": "15m",
+      "ip_settle_timeout": "10s",
+      "convert_to_template": "true",
+      "folder": "{{ vcenter_folder }}",
+      "disk_size": "{{ disk_gb|int * 1024 }}",
+      "disk_thin_provisioned": "{{ disk_thin }}",
+      "guest_os_type": "{{ guest_id }}",
+      
+      "iso_paths": "[{{ vcenter_datastore }}] {{ vcenter_iso_path }}{{ iso.url.split('/')[-1] }}",
+
+      "name": "{{ inventory_hostname}}",
+      "datastore": "{{ vcenter_datastore }}",
+      "host": "{{ esxi_host }}",
+      "shutdown_command": "echo '/sbin/halt -h -p' > shutdown.sh; echo 'packer'|sudo -S bash 'shutdown.sh'",
+
+      "RAM": "{{ memory }}",
+      "CPUs": "{{ vcpu }}",
+      "network": "{{ port_group }}",
+      "network_card": "{{ adapter_type }}",
+
+      "boot_command": "<tab> inst.text inst.ks=hd:fd0:/ks.cfg <enter><wait>",
+
+      "floppy_files": [
+        "packer/ks.cfg"
+      ],
+
+      "configuration_parameters": {
+        "virtualHW.version": 14
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [ "uptime" ]
+    },
+    {
+      "type": "ansible",
+      "inventory_file": "{{ inventory_file }}",
+      "playbook_file": "{{ playbook_dir }}/provision.yml",
+      "sftp_command": "/usr/libexec/openssh/sftp-server -e",
+      "extra_arguments": [
+        "--extra-vars", "ansible_ssh_private_key_file=''",
+        "--extra-vars", "ansible_ssh_pass='{{ root_pwd }}'",
+        "--tags", "provision_initial",
+        "--limit", "{{ inventory_hostname }}",
+        "-vvvvv"
+      ]
+    },
+    {
+      "type": "ansible",
+      "inventory_file": "{{ inventory_file }}",
+      "playbook_file": "{{ playbook_dir }}/provision.yml",
+      "sftp_command": "/usr/libexec/openssh/sftp-server -e",
+      "user": "{{ ansible_user }}",
+      "extra_arguments": [
+        "--tags", "provision_advanced",
+        "--limit", "{{ inventory_hostname }}",
+        "--extra-vars", "ansible_ssh_private_key_file={{ ansible_ssh_private_key_file }}",
+        "--extra-vars", "-o IdentitiesOnly=no",
+        "-vvvvv"
+      ],
+      "ansible_env_vars": [ "ANSIBLE_HOST_KEY_CHECKING=false" ]
+    },
+    {
+      "type": "ansible",
+      "inventory_file": "{{ inventory_file }}",
+      "playbook_file": "{{ playbook_dir }}/provision.yml",
+      "sftp_command": "/usr/libexec/openssh/sftp-server -e",
+      "user": "{{ ansible_user }}",
+      "extra_arguments": [
+        "--tags", "cleanup",
+        "--limit", "{{ inventory_hostname }}",
+        "--extra-vars", "ansible_ssh_private_key_file={{ ansible_ssh_private_key_file }}",
+        "--extra-vars", "-o IdentitiesOnly=no",
+        "-vvvvv"
+      ],
+      "ansible_env_vars": [ "ANSIBLE_HOST_KEY_CHECKING=false" ]
+    }
+  ]
+}
